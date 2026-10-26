@@ -19,9 +19,9 @@ while pgrep -xq BBEdit; do
     if docs=$(osascript \
         -e 'tell application "BBEdit"' \
         -e '    set out to ""' \
-        -e '    repeat with d in text documents' \
+        -e '    repeat with i from 1 to count of text documents' \
         -e '        try' \
-        -e '            set out to out & POSIX path of (file of d as alias) & linefeed' \
+        -e '            set out to out & POSIX path of (file of text document i as alias) & linefeed' \
         -e '        end try' \
         -e '    end repeat' \
         -e '    return out' \
