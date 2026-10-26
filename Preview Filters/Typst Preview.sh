@@ -16,6 +16,8 @@
 #   TYPST_BIN           path to the typst binary
 #   TYPST_PREVIEW_ARGS  extra arguments for `typst compile` (word-split)
 #   TYPST_FONT_PATHS    extra font directories (read by typst itself)
+#   TYPST_PREVIEW_DEBUG set to 1 to write the filter's environment to
+#                       ~/Library/Caches/typst-bbedit-preview/debug.txt
 #   TYPST_PREVIEW_WIDTH page width as CSS: "100%" fits the window (default),
 #                       "700px" is a fixed size, "150%" zooms past the window
 
@@ -34,19 +36,36 @@ cat > "$work/input.typ"
 
 # Relative paths (#include, #image, #read) resolve against --root when the
 # source comes from stdin, so the root is the document's own directory.
+# BBEdit doesn't pass the document's path to preview filters, so ask it
+# for the front text document's file, which is the one being edited.
 doc_path="${BB_DOC_PATH:-}"
+if [ -z "$doc_path" ] && command -v osascript >/dev/null; then
+    doc_path=$(osascript \
+        -e 'with timeout of 2 seconds' \
+        -e 'tell application "BBEdit" to get POSIX path of (file of text document 1 as alias)' \
+        -e 'end timeout' 2>/dev/null)
+fi
 if [ -n "$doc_path" ] && [ -d "$(dirname "$doc_path")" ]; then
     doc_dir=$(dirname "$doc_path")
     doc_name=$(basename "$doc_path")
 else
+    doc_path=""
     doc_dir="$PWD"
     doc_name="untitled.typ"
 fi
 
 cache_dir="${XDG_CACHE_HOME:-$HOME/Library/Caches}/typst-bbedit-preview"
 mkdir -p "$cache_dir"
-cache_key=$(printf '%s' "${doc_path:-untitled}" | cksum | cut -d' ' -f1)
-last_good="$cache_dir/$cache_key.html"
+if [ -n "$TYPST_PREVIEW_DEBUG" ]; then
+    { date; echo "doc_path=$doc_path"; echo "PWD=$PWD"; env; } > "$cache_dir/debug.txt"
+fi
+# The last good render is kept per document; an unsaved document has no
+# stable key, so it gets none rather than showing another file's pages.
+last_good=""
+if [ -n "$doc_path" ]; then
+    cache_key=$(printf '%s' "$doc_path" | cksum | cut -d' ' -f1)
+    last_good="$cache_dir/$cache_key.html"
+fi
 
 escape_html() {
     sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
@@ -124,7 +143,7 @@ if [ $status -eq 0 ]; then
         [ $found -eq 0 ] && printf '<div class="empty">This document has no pages.</div>\n'
         printf '</main>\n'
     } > "$work/body.html"
-    cp "$work/body.html" "$last_good"
+    [ -n "$last_good" ] && cp "$work/body.html" "$last_good"
 
     page_header
     printf '<body>\n'
@@ -133,7 +152,7 @@ if [ $status -eq 0 ]; then
     printf '</body></html>\n'
 else
     page_header
-    if [ -f "$last_good" ]; then
+    if [ -n "$last_good" ] && [ -f "$last_good" ]; then
         printf '<body class="stale">\n'
         banner error "Compile error (showing last good render)" "$work/stderr"
         cat "$last_good"
