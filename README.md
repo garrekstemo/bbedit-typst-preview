@@ -14,8 +14,8 @@ Live, as-you-type preview of Typst documents inside BBEdit's own Preview window,
 
 ```sh
 brew install typst          # if you don't have it yet
-git clone https://github.com/garrekstemo/typst-bbedit-preview ~/Developer/typst-bbedit-preview
-bash ~/Developer/typst-bbedit-preview/install.sh
+git clone https://github.com/garrekstemo/bbedit-typst-preview ~/Developer/bbedit-typst-preview
+bash ~/Developer/bbedit-typst-preview/install.sh
 ```
 
 The installer links BBEdit to the files in the clone rather than copying them, so keep the clone where it is. To update later, `git pull` in the clone; there's no reinstall step. Restart BBEdit only when the language module changed, since BBEdit reads language modules at launch.
@@ -46,7 +46,7 @@ For a long document, if the preview starts to lag, switch to Typst Watch PDF. Se
 
 ## Settings (optional)
 
-Create `~/.config/typst-bbedit-preview/config`. It's a shell file, for example:
+Create `~/.config/bbedit-typst-preview/config`. It's a shell file, for example:
 
 ```sh
 TYPST_BIN=/opt/homebrew/bin/typst      # if typst isn't on a standard path
@@ -61,7 +61,7 @@ PDF_VIEWER=Skim
 ## Troubleshooting
 
 * **The preview shows plain text or HTML-escaped source.** BBEdit didn't apply the filter. Pick **Typst Preview** from the filter menu in the preview window's navigation bar; BBEdit remembers the choice for each document. Also check that the status bar shows the language as "Typst" (the language module loads after a restart).
-* **"file location not known yet".** The background helper hadn't reported yet (this happens on the very first preview after BBEdit starts), or the document has never been saved. Save the file and type a character to refresh. If it persists, check System Settings › Privacy & Security › Automation lets the helper control BBEdit. Setting `TYPST_PREVIEW_DEBUG=1` in the config file writes what the filter saw to `~/Library/Caches/typst-bbedit-preview/debug.txt`.
+* **"file location not known yet".** The background helper hadn't reported yet (this happens on the very first preview after BBEdit starts), or the document has never been saved. Save the file and type a character to refresh. If it persists, check System Settings › Privacy & Security › Automation lets the helper control BBEdit. Setting `TYPST_PREVIEW_DEBUG=1` in the config file writes what the filter saw to `~/Library/Caches/bbedit-typst-preview/debug.txt`.
 * **Absolute paths (`/assets/logo.png`)** resolve against the document's folder, not a project root above it, because the buffer comes in on stdin.
 
 ## Tested
