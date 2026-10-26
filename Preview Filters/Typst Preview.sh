@@ -16,6 +16,8 @@
 #   TYPST_BIN           path to the typst binary
 #   TYPST_PREVIEW_ARGS  extra arguments for `typst compile` (word-split)
 #   TYPST_FONT_PATHS    extra font directories (read by typst itself)
+#   TYPST_PREVIEW_DEBUG set to 1 to write the filter's environment to
+#                       ~/Library/Caches/typst-bbedit-preview/debug.txt
 #   TYPST_PREVIEW_WIDTH page width as CSS: "100%" fits the window (default),
 #                       "700px" is a fixed size, "150%" zooms past the window
 
@@ -32,21 +34,71 @@ trap 'rm -rf "$work"' EXIT
 
 cat > "$work/input.typ"
 
+cache_dir="${XDG_CACHE_HOME:-$HOME/Library/Caches}/typst-bbedit-preview"
+mkdir -p "$cache_dir"
+
 # Relative paths (#include, #image, #read) resolve against --root when the
-# source comes from stdin, so the root is the document's own directory.
+# source comes from stdin, so the root must be the document's own folder.
+# BBEdit doesn't tell preview filters which file they're rendering, and it
+# can't answer AppleScript while a filter runs. So a background helper
+# (lib/bbedit-docwatch.sh) keeps a list of BBEdit's open files, and we pick
+# the .typ file whose saved text is closest to the text we were given.
+self="$0"
+while [ -L "$self" ]; do
+    link=$(readlink "$self")
+    case "$link" in
+        /*) self="$link" ;;
+        *) self="$(dirname "$self")/$link" ;;
+    esac
+done
+docwatch="$(cd "$(dirname "$self")/.." && pwd)/lib/bbedit-docwatch.sh"
+open_docs="$cache_dir/open-documents.txt"
+docwatch_pid="$cache_dir/docwatch.pid"
+if [ -x "$docwatch" ] && command -v osascript >/dev/null &&
+   ! { [ -f "$docwatch_pid" ] && kill -0 "$(cat "$docwatch_pid")" 2>/dev/null; }; then
+    nohup "$docwatch" "$open_docs" "$docwatch_pid" </dev/null >/dev/null 2>&1 &
+fi
+
 doc_path="${BB_DOC_PATH:-}"
+if [ -z "$doc_path" ] && [ -f "$open_docs" ]; then
+    best_diff=""
+    while IFS= read -r candidate; do
+        case "$candidate" in *.typ) ;; *) continue ;; esac
+        [ -f "$candidate" ] || continue
+        if cmp -s "$work/input.typ" "$candidate"; then
+            doc_path="$candidate"
+            break
+        fi
+        # Skip files that share less than half their lines with the text,
+        # so an unsaved new document doesn't borrow another file's folder.
+        changed=$(diff "$work/input.typ" "$candidate" | grep -c '^[<>]')
+        total=$(cat "$work/input.typ" "$candidate" | wc -l)
+        [ $((changed * 2)) -le "$total" ] || continue
+        if [ -z "$best_diff" ] || [ "$changed" -lt "$best_diff" ]; then
+            best_diff="$changed"
+            doc_path="$candidate"
+        fi
+    done < "$open_docs"
+fi
 if [ -n "$doc_path" ] && [ -d "$(dirname "$doc_path")" ]; then
     doc_dir=$(dirname "$doc_path")
     doc_name=$(basename "$doc_path")
 else
+    doc_path=""
     doc_dir="$PWD"
     doc_name="untitled.typ"
 fi
 
-cache_dir="${XDG_CACHE_HOME:-$HOME/Library/Caches}/typst-bbedit-preview"
-mkdir -p "$cache_dir"
-cache_key=$(printf '%s' "${doc_path:-untitled}" | cksum | cut -d' ' -f1)
-last_good="$cache_dir/$cache_key.html"
+if [ -n "$TYPST_PREVIEW_DEBUG" ]; then
+    { date; echo "args=$*"; echo "doc_path=$doc_path"; echo "PWD=$PWD"; env; } > "$cache_dir/debug.txt"
+fi
+# The last good render is kept per document; an unsaved document has no
+# stable key, so it gets none rather than showing another file's pages.
+last_good=""
+if [ -n "$doc_path" ]; then
+    cache_key=$(printf '%s' "$doc_path" | cksum | cut -d' ' -f1)
+    last_good="$cache_dir/$cache_key.html"
+fi
 
 escape_html() {
     sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
@@ -124,7 +176,7 @@ if [ $status -eq 0 ]; then
         [ $found -eq 0 ] && printf '<div class="empty">This document has no pages.</div>\n'
         printf '</main>\n'
     } > "$work/body.html"
-    cp "$work/body.html" "$last_good"
+    [ -n "$last_good" ] && cp "$work/body.html" "$last_good"
 
     page_header
     printf '<body>\n'
@@ -133,13 +185,17 @@ if [ $status -eq 0 ]; then
     printf '</body></html>\n'
 else
     page_header
-    if [ -f "$last_good" ]; then
+    if [ -n "$last_good" ] && [ -f "$last_good" ]; then
         printf '<body class="stale">\n'
         banner error "Compile error (showing last good render)" "$work/stderr"
         cat "$last_good"
     else
         printf '<body>\n'
-        banner error "Compile error" "$work/stderr"
+        if [ -z "$doc_path" ]; then
+            banner error "Compile error (file location not known yet: save the file, then type to refresh)" "$work/stderr"
+        else
+            banner error "Compile error" "$work/stderr"
+        fi
     fi
     printf '</body></html>\n'
 fi
