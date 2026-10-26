@@ -11,17 +11,17 @@
 # on screen under an error banner, so the preview doesn't blank out while
 # you type.
 #
-# Optional settings live in ~/.config/typst-bbedit-preview/config, which
+# Optional settings live in ~/.config/bbedit-typst-preview/config, which
 # is sourced as a shell file. Recognised variables:
 #   TYPST_BIN           path to the typst binary
 #   TYPST_PREVIEW_ARGS  extra arguments for `typst compile` (word-split)
 #   TYPST_FONT_PATHS    extra font directories (read by typst itself)
 #   TYPST_PREVIEW_DEBUG set to 1 to write the filter's environment to
-#                       ~/Library/Caches/typst-bbedit-preview/debug.txt
+#                       ~/Library/Caches/bbedit-typst-preview/debug.txt
 #   TYPST_PREVIEW_WIDTH page width as CSS: "100%" fits the window (default),
 #                       "700px" is a fixed size, "150%" zooms past the window
 
-CONFIG="$HOME/.config/typst-bbedit-preview/config"
+CONFIG="$HOME/.config/bbedit-typst-preview/config"
 [ -f "$CONFIG" ] && . "$CONFIG"
 
 # BBEdit's filter environment can have a short PATH, so also look in the
@@ -34,7 +34,7 @@ trap 'rm -rf "$work"' EXIT
 
 cat > "$work/input.typ"
 
-cache_dir="${XDG_CACHE_HOME:-$HOME/Library/Caches}/typst-bbedit-preview"
+cache_dir="${XDG_CACHE_HOME:-$HOME/Library/Caches}/bbedit-typst-preview"
 mkdir -p "$cache_dir"
 
 # Relative paths (#include, #image, #read) resolve against --root when the

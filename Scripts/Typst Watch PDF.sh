@@ -8,11 +8,11 @@
 # watcher. Use this when you want exact PDF output, or for large documents
 # where the as-you-type preview filter is too slow.
 #
-# Set PDF_VIEWER in ~/.config/typst-bbedit-preview/config to pick the app
+# Set PDF_VIEWER in ~/.config/bbedit-typst-preview/config to pick the app
 # (Skim reloads changed PDFs automatically; set its "Check for file
 # changes" preference).
 
-CONFIG="$HOME/.config/typst-bbedit-preview/config"
+CONFIG="$HOME/.config/bbedit-typst-preview/config"
 [ -f "$CONFIG" ] && . "$CONFIG"
 
 PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.cargo/bin:$HOME/.local/bin:/opt/local/bin"
@@ -32,7 +32,7 @@ if [ -z "$TYPST_BIN" ]; then
     exit 1
 fi
 
-state_dir="$HOME/Library/Caches/typst-bbedit-preview/watch"
+state_dir="$HOME/Library/Caches/bbedit-typst-preview/watch"
 mkdir -p "$state_dir"
 key=$(printf '%s' "$src" | cksum | cut -d' ' -f1)
 pid_file="$state_dir/$key.pid"
