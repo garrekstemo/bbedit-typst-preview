@@ -34,16 +34,51 @@ trap 'rm -rf "$work"' EXIT
 
 cat > "$work/input.typ"
 
+cache_dir="${XDG_CACHE_HOME:-$HOME/Library/Caches}/typst-bbedit-preview"
+mkdir -p "$cache_dir"
+
 # Relative paths (#include, #image, #read) resolve against --root when the
-# source comes from stdin, so the root is the document's own directory.
-# BBEdit doesn't pass the document's path to preview filters, so ask it
-# for the front text document's file, which is the one being edited.
+# source comes from stdin, so the root must be the document's own folder.
+# BBEdit doesn't tell preview filters which file they're rendering, and it
+# can't answer AppleScript while a filter runs. So a background helper
+# (lib/bbedit-docwatch.sh) keeps a list of BBEdit's open files, and we pick
+# the .typ file whose saved text is closest to the text we were given.
+self="$0"
+while [ -L "$self" ]; do
+    link=$(readlink "$self")
+    case "$link" in
+        /*) self="$link" ;;
+        *) self="$(dirname "$self")/$link" ;;
+    esac
+done
+docwatch="$(cd "$(dirname "$self")/.." && pwd)/lib/bbedit-docwatch.sh"
+open_docs="$cache_dir/open-documents.txt"
+docwatch_pid="$cache_dir/docwatch.pid"
+if [ -x "$docwatch" ] && command -v osascript >/dev/null &&
+   ! { [ -f "$docwatch_pid" ] && kill -0 "$(cat "$docwatch_pid")" 2>/dev/null; }; then
+    nohup "$docwatch" "$open_docs" "$docwatch_pid" </dev/null >/dev/null 2>&1 &
+fi
+
 doc_path="${BB_DOC_PATH:-}"
-if [ -z "$doc_path" ] && command -v osascript >/dev/null; then
-    doc_path=$(osascript \
-        -e 'with timeout of 2 seconds' \
-        -e 'tell application "BBEdit" to get POSIX path of (file of text document 1 as alias)' \
-        -e 'end timeout' 2>/dev/null)
+if [ -z "$doc_path" ] && [ -f "$open_docs" ]; then
+    best_diff=""
+    while IFS= read -r candidate; do
+        case "$candidate" in *.typ) ;; *) continue ;; esac
+        [ -f "$candidate" ] || continue
+        if cmp -s "$work/input.typ" "$candidate"; then
+            doc_path="$candidate"
+            break
+        fi
+        # Skip files that share less than half their lines with the text,
+        # so an unsaved new document doesn't borrow another file's folder.
+        changed=$(diff "$work/input.typ" "$candidate" | grep -c '^[<>]')
+        total=$(cat "$work/input.typ" "$candidate" | wc -l)
+        [ $((changed * 2)) -le "$total" ] || continue
+        if [ -z "$best_diff" ] || [ "$changed" -lt "$best_diff" ]; then
+            best_diff="$changed"
+            doc_path="$candidate"
+        fi
+    done < "$open_docs"
 fi
 if [ -n "$doc_path" ] && [ -d "$(dirname "$doc_path")" ]; then
     doc_dir=$(dirname "$doc_path")
@@ -54,10 +89,8 @@ else
     doc_name="untitled.typ"
 fi
 
-cache_dir="${XDG_CACHE_HOME:-$HOME/Library/Caches}/typst-bbedit-preview"
-mkdir -p "$cache_dir"
 if [ -n "$TYPST_PREVIEW_DEBUG" ]; then
-    { date; echo "doc_path=$doc_path"; echo "PWD=$PWD"; env; } > "$cache_dir/debug.txt"
+    { date; echo "args=$*"; echo "doc_path=$doc_path"; echo "PWD=$PWD"; env; } > "$cache_dir/debug.txt"
 fi
 # The last good render is kept per document; an unsaved document has no
 # stable key, so it gets none rather than showing another file's pages.
@@ -158,7 +191,11 @@ else
         cat "$last_good"
     else
         printf '<body>\n'
-        banner error "Compile error" "$work/stderr"
+        if [ -z "$doc_path" ]; then
+            banner error "Compile error (file location not known yet: save the file, then type to refresh)" "$work/stderr"
+        else
+            banner error "Compile error" "$work/stderr"
+        fi
     fi
     printf '</body></html>\n'
 fi

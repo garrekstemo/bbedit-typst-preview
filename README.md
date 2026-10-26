@@ -29,7 +29,7 @@ To remove everything: `bash install.sh --uninstall`.
 BBEdit pipes the document text to the preview filter on stdin and shows the HTML the filter prints. The filter runs `typst compile - page-{0p}.svg --root <document folder>`, then puts each page into the HTML as an image. Because the filter reads the buffer rather than the file, you see changes before saving.
 
 * **Errors don't blank the preview.** When the document fails to compile mid-edit, the last good render stays on screen, dimmed, under a banner showing Typst's error message with the line number. Warnings show in a yellow banner.
-* **Relative paths work.** `#include`, `#image` and `#read` resolve against the document's folder. BBEdit doesn't tell preview filters which file they're rendering, so the filter asks BBEdit for the front document's path over AppleScript. The first time, macOS asks whether BBEdit may control BBEdit; allow it.
+* **Relative paths work.** `#include`, `#image` and `#read` resolve against the document's folder. BBEdit doesn't tell preview filters which file they're rendering, and it can't answer AppleScript while a filter runs, so a small background helper (`lib/bbedit-docwatch.sh`) asks BBEdit once a second which files are open. The filter picks the open `.typ` file whose saved text is closest to what it was given. The helper starts with the first preview and exits when BBEdit quits. The first time, macOS asks whether it may control BBEdit; allow it.
 * **The document can tell it's being previewed.** `sys.inputs.at("bbedit-preview", default: "false") == "true"` is true only in the preview, if you want to hide something or render a draft mark.
 * **Packages work.** `@preview/…` imports download on first use, like with the CLI.
 
@@ -61,7 +61,7 @@ PDF_VIEWER=Skim
 ## Troubleshooting
 
 * **The preview shows plain text or HTML-escaped source.** BBEdit didn't apply the filter. Pick **Typst Preview** from the filter menu in the preview window's navigation bar; BBEdit remembers the choice for each document. Also check that the status bar shows the language as "Typst" (the language module loads after a restart).
-* **"file not found" for an image or include that exists, and the error names `untitled.typ`.** The filter couldn't get the document's path from BBEdit. Save the document (unsaved documents have no folder), and check System Settings › Privacy & Security › Automation allows BBEdit to control BBEdit. Setting `TYPST_PREVIEW_DEBUG=1` in the config file writes what the filter saw to `~/Library/Caches/typst-bbedit-preview/debug.txt`.
+* **"file location not known yet".** The background helper hadn't reported yet (this happens on the very first preview after BBEdit starts), or the document has never been saved. Save the file and type a character to refresh. If it persists, check System Settings › Privacy & Security › Automation lets the helper control BBEdit. Setting `TYPST_PREVIEW_DEBUG=1` in the config file writes what the filter saw to `~/Library/Caches/typst-bbedit-preview/debug.txt`.
 * **Absolute paths (`/assets/logo.png`)** resolve against the document's folder, not a project root above it, because the buffer comes in on stdin.
 
 ## Tested
