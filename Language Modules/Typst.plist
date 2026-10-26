@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BBEditDocumentType</key>
+	<string>CodelessLanguageModule</string>
+	<key>BBLMLanguageDisplayName</key>
+	<string>Typst</string>
+	<key>BBLMLanguageCode</key>
+	<string>Typs</string>
+	<key>BBLMSuffixMap</key>
+	<array>
+		<dict>
+			<key>BBLMLanguageSuffix</key>
+			<string>.typ</string>
+		</dict>
+	</array>
+	<key>BBLMColorsSyntax</key>
+	<true/>
+	<key>BBLMIsCaseSensitive</key>
+	<true/>
+	<key>BBLMScansFunctions</key>
+	<true/>
+	<key>BBLMCommentLineDefault</key>
+	<string>//</string>
+	<key>BBLMCommentPrefixDefault</key>
+	<string>/*</string>
+	<key>BBLMCommentSuffixDefault</key>
+	<string>*/</string>
+	<key>BBLMKeywordList</key>
+	<array>
+		<string>let</string>
+		<string>set</string>
+		<string>show</string>
+		<string>if</string>
+		<string>else</string>
+		<string>for</string>
+		<string>in</string>
+		<string>while</string>
+		<string>break</string>
+		<string>continue</string>
+		<string>return</string>
+		<string>import</string>
+		<string>include</string>
+		<string>context</string>
+		<string>as</string>
+		<string>and</string>
+		<string>or</string>
+		<string>not</string>
+		<string>none</string>
+		<string>auto</string>
+		<string>true</string>
+		<string>false</string>
+	</array>
+	<key>Language Features</key>
+	<dict>
+		<key>Identifier and Keyword Character Class</key>
+		<string>A-Za-z0-9_\-</string>
+		<key>Open Line Comments</key>
+		<string>//</string>
+		<key>Open Block Comments</key>
+		<string>/*</string>
+		<key>Close Block Comments</key>
+		<string>*/</string>
+		<key>Open Strings 1</key>
+		<string>"</string>
+		<key>Close Strings 1</key>
+		<string>"</string>
+		<key>Escape Char in Strings 1</key>
+		<string>\</string>
+		<key>End-of-line Ends Strings 1</key>
+		<false/>
+		<key>Open Parameter Lists</key>
+		<string>(</string>
+		<key>Close Parameter Lists</key>
+		<string>)</string>
+		<key>Open Statement Blocks</key>
+		<string>[</string>
+		<key>Close Statement Blocks</key>
+		<string>]</string>
+		<key>Function Pattern</key>
+		<string>(?x:
+			(?P&lt;function&gt;
+				^(?P&lt;function_name&gt;=+[ \t]+[^\r\n]+)
+			)
+		)</string>
+	</dict>
+</dict>
+</plist>
